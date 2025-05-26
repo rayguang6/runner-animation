@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Runner - Simple</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Business Selection Screen -->
+    <div id="businessSelection">
+        <h1 class="title">🏢 Choose Your Business</h1>
+        <div class="business-grid" id="businessGrid"></div>
+    </div>
+
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Game UI -->
+    <div id="gameUI">
+        <div>💰 Cash: $<span id="cash">0</span></div>
+        <div>📅 Month: <span id="month">1</span></div>
+        <div>📈 Revenue: $<span id="revenue">100</span>/month</div>
+        <div>🏢 Business: <span id="businessType">None</span></div>
+    </div>
+
+    <!-- Back Button -->
+    <button id="backButton" onclick="goBack()">← Back</button>
+
+    <script src="config.js"></script>
+    <script src="renderer.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
