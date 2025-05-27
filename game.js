@@ -5,7 +5,9 @@ let gameState = {
     revenue: 100,
     month: 1,
     gameStarted: false,
-    roadOffset: 0
+    roadOffset: 0,
+    cardsThisMonth: 0, // Track cards encountered this month
+    maxCardsPerMonth: 2 // 2 cards = 1 month
 };
 
 // Player sprite
@@ -61,6 +63,8 @@ function selectBusiness(businessId) {
     initCanvas();
     initPlayerSprite();
     initBackgroundDecorations();
+    initGameCards(); // Initialize card system
+    initMoneySystem(); // Initialize money system
     gameState.gameStarted = true;
     gameLoop();
 }
@@ -68,13 +72,17 @@ function selectBusiness(businessId) {
 function goBack() {
     gameState.gameStarted = false;
     backgroundDecorations = [];
+    resetCardSystem(); // Reset card system
+    resetMoneySystem(); // Reset money system
     gameState = {
         selectedBusiness: null,
         cash: 0,
         revenue: 100,
         month: 1,
         gameStarted: false,
-        roadOffset: 0
+        roadOffset: 0,
+        cardsThisMonth: 0,
+        maxCardsPerMonth: 2
     };
     
     document.getElementById('businessSelection').style.display = 'flex';
@@ -106,23 +114,31 @@ function update() {
     
     // Update background decorations
     updateBackgroundDecorations();
+    
+    // Update game cards
+    updateGameCards();
+    
+    // Update money system
+    updateMoneySystem();
 }
 
 function draw() {
-    if (!gameState.gameStarted) return;
-    
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    drawSky();
-    drawGround();
-    drawBackgroundDecorations(); // Now properly positioned roadside decorations
-    drawRoad();
-    drawPlayer();
+    // Always draw the basic scene
+    if (gameState.selectedBusiness) {
+        drawSky();
+        drawGround();
+        drawBackgroundDecorations(); // Now properly positioned roadside decorations
+        drawRoad();
+        drawMoneySystem(); // Draw money pickups FIRST (behind cards)
+        drawGameCards(); // Draw cards SECOND (in front of money)
+        drawPlayer();
+    }
 }
 
 function gameLoop() {
-    if (!gameState.gameStarted) return;
-    
+    // Always run the loop, but only update/draw when game is started
     update();
     draw();
     

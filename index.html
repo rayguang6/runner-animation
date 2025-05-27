@@ -18,17 +18,33 @@
 
     <!-- Game UI -->
     <div id="gameUI">
-        <div>💰 Cash: $<span id="cash">0</span></div>
-        <div>📅 Month: <span id="month">1</span></div>
-        <div>📈 Revenue: $<span id="revenue">100</span>/month</div>
-        <div>🏢 Business: <span id="businessType">None</span></div>
+        <div style="margin-bottom: 8px;">💰 Cash: $<span id="cash">0</span></div>
+        <div style="margin-bottom: 8px;">📅 Month: <span id="month">1</span></div>
+        <div style="margin-bottom: 8px;">📈 Revenue: $<span id="revenue">100</span>/month</div>
+        <div style="margin-bottom: 8px;">🏢 Business: <span id="businessType">None</span></div>
+        <div style="margin-bottom: 8px;">🃏 <span id="cardProgress">Card 0 of 2</span></div>
+        <div id="monthStatus" style="color: #4CAF50; font-weight: bold; margin-top: 12px;">Hit cards to progress!</div>
     </div>
 
     <!-- Back Button -->
     <button id="backButton" onclick="goBack()">← Back</button>
 
+    <!-- Card Popup -->
+    <div id="cardPopup" class="popup-overlay">
+        <div class="popup-content">
+            <h2>🃏 Business Decision</h2>
+            <p id="cardDescription">You encountered a business opportunity!</p>
+            <div class="popup-buttons">
+                <button onclick="closePopup()" class="popup-btn">Continue</button>
+            </div>
+        </div>
+    </div>
+
     <script src="config.js"></script>
     <script src="renderer.js"></script>
+    <script src="cardSystem.js"></script>
+    <script src="moneySystem.js"></script>
+    <script src="uiSystem.js"></script>
     <script src="game.js"></script>
 </body>
 </html>
