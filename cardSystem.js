@@ -40,7 +40,7 @@ function initGameCards() {
 
 function spawnCard(type) {
     // First card far, others close
-    let spawnDistance = isFirstCard ? 8 : 3.5;
+    let spawnDistance = isFirstCard ? 6 : 3.5;
     isFirstCard = false;
     // Check if there's money too close and find a safe distance
     let safeToSpawn = false;

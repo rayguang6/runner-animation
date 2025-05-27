@@ -86,17 +86,21 @@ function makeDecision(choice) {
         console.log('Chose option 2:', decision.option2.text);
     }
     
-    // Show effect briefly
-    const popupButtons = document.querySelector('.popup-buttons');
-    popupButtons.innerHTML = `
-        <div style="color: #4CAF50; font-weight: bold; margin: 10px 0;">
-            ${choice === 0 ? decision.option1.text : decision.option2.text}
-        </div>
-        <button onclick="closePopup()" class="popup-btn">Continue</button>
-    `;
+    // Hide popup immediately - no effect screen
+    document.getElementById('cardPopup').style.display = 'none';
+    
+    // Resume the game immediately
+    gameState.gameStarted = true;
     
     // Update UI to show changes
     updateUI();
+    
+    // Spawn next card after a delay
+    setTimeout(() => {
+        spawnCard();
+    }, 1000);
+    
+    console.log('Decision applied, game resumed immediately');
 }
 
 function closePopup() {
