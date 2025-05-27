@@ -1,6 +1,9 @@
 // === UI AND POPUP SYSTEM ===
 
 function hitCard() {
+    // Play card sound
+    playSound('card');
+    
     // Show popup
     showCardPopup();
     
@@ -30,10 +33,70 @@ function showCardPopup() {
     // Show popup
     document.getElementById('cardPopup').style.display = 'flex';
     
-    // Update popup content based on business type
-    const businessName = gameState.selectedBusiness.name;
-    document.getElementById('cardDescription').textContent = 
-        `A ${businessName} opportunity appeared! Make your decision.`;
+    // Generate simple business decision
+    const decisions = [
+        {
+            title: "💼 Expand Operations?",
+            description: "You can expand your business operations.",
+            option1: { text: "📈 Expand (+$20 revenue)", effect: () => gameState.revenue += 20 },
+            option2: { text: "💰 Save Cash (+$50 cash)", effect: () => gameState.cash += 50 }
+        },
+        {
+            title: "🤝 Partnership Offer",
+            description: "A partner wants to join your business.",
+            option1: { text: "✅ Accept (+$30 revenue)", effect: () => gameState.revenue += 30 },
+            option2: { text: "❌ Decline (+$100 cash)", effect: () => gameState.cash += 100 }
+        },
+        {
+            title: "💡 New Technology",
+            description: "Invest in new technology for your business?",
+            option1: { text: "🚀 Invest (+$25 revenue)", effect: () => gameState.revenue += 25 },
+            option2: { text: "💵 Keep Cash (+$75 cash)", effect: () => gameState.cash += 75 }
+        }
+    ];
+    
+    // Pick random decision
+    const decision = decisions[Math.floor(Math.random() * decisions.length)];
+    
+    // Update popup content
+    document.getElementById('cardDescription').innerHTML = `
+        <h3>${decision.title}</h3>
+        <p>${decision.description}</p>
+    `;
+    
+    // Update buttons with choices
+    const popupButtons = document.querySelector('.popup-buttons');
+    popupButtons.innerHTML = `
+        <button onclick="makeDecision(0)" class="popup-btn" style="background: #4CAF50;">${decision.option1.text}</button>
+        <button onclick="makeDecision(1)" class="popup-btn" style="background: #2196F3;">${decision.option2.text}</button>
+    `;
+    
+    // Store current decision globally
+    window.currentDecision = decision;
+}
+
+function makeDecision(choice) {
+    const decision = window.currentDecision;
+    
+    if (choice === 0) {
+        decision.option1.effect();
+        console.log('Chose option 1:', decision.option1.text);
+    } else {
+        decision.option2.effect();
+        console.log('Chose option 2:', decision.option2.text);
+    }
+    
+    // Show effect briefly
+    const popupButtons = document.querySelector('.popup-buttons');
+    popupButtons.innerHTML = `
+        <div style="color: #4CAF50; font-weight: bold; margin: 10px 0;">
+            ${choice === 0 ? decision.option1.text : decision.option2.text}
+        </div>
+        <button onclick="closePopup()" class="popup-btn">Continue</button>
+    `;
+    
+    // Update UI to show changes
+    updateUI();
 }
 
 function closePopup() {
@@ -61,6 +124,18 @@ function endMonth() {
     // Advance to next month
     gameState.month += 1;
     gameState.cardsThisMonth = 0; // Reset card counter
+    
+    // Check win condition
+    if (gameState.cash >= gameState.targetCash) {
+        showVictoryScreen();
+        return;
+    }
+    
+    // Check game over condition
+    if (gameState.month > gameState.maxMonths) {
+        showGameOverScreen();
+        return;
+    }
     
     // Update UI first
     updateUI();
@@ -91,6 +166,96 @@ function endMonth() {
     }, 5000);
 }
 
+function showVictoryScreen() {
+    gameState.gameStarted = false;
+    gameState.gameEnded = true;
+    
+    // Stop background music
+    stopBackgroundMusic();
+    
+    // Show victory popup
+    document.getElementById('cardPopup').style.display = 'flex';
+    document.getElementById('cardDescription').innerHTML = `
+        <h2 style="color: #4CAF50; margin-bottom: 15px;">🎉 VICTORY! 🎉</h2>
+        <p>Congratulations! You've built a successful business!</p>
+        <p><strong>Final Cash: $${gameState.cash}</strong></p>
+        <p><strong>Months Played: ${gameState.month - 1}</strong></p>
+        <p><strong>Business: ${gameState.selectedBusiness.name}</strong></p>
+    `;
+    
+    // Change button to restart
+    const popupButtons = document.querySelector('.popup-buttons');
+    popupButtons.innerHTML = `
+        <button onclick="restartGame()" class="popup-btn" style="background: #4CAF50;">🎮 Play Again</button>
+        <button onclick="goBack()" class="popup-btn" style="background: #2196F3;">🏢 Choose Business</button>
+    `;
+}
+
+function showGameOverScreen() {
+    gameState.gameStarted = false;
+    gameState.gameEnded = true;
+    
+    // Stop background music
+    stopBackgroundMusic();
+    
+    // Show game over popup
+    document.getElementById('cardPopup').style.display = 'flex';
+    document.getElementById('cardDescription').innerHTML = `
+        <h2 style="color: #e74c3c; margin-bottom: 15px;">💼 TIME'S UP! 💼</h2>
+        <p>You ran out of time to reach your goal!</p>
+        <p><strong>Final Cash: $${gameState.cash}</strong></p>
+        <p><strong>Target: $${gameState.targetCash}</strong></p>
+        <p><strong>Months Played: ${gameState.maxMonths}</strong></p>
+        <p>Try a different strategy next time!</p>
+    `;
+    
+    // Change button to restart
+    const popupButtons = document.querySelector('.popup-buttons');
+    popupButtons.innerHTML = `
+        <button onclick="restartGame()" class="popup-btn" style="background: #e74c3c;">🎮 Try Again</button>
+        <button onclick="goBack()" class="popup-btn" style="background: #2196F3;">🏢 Choose Business</button>
+    `;
+}
+
+function restartGame() {
+    // Reset game state but keep selected business
+    const selectedBusiness = gameState.selectedBusiness;
+    
+    gameState = {
+        selectedBusiness: selectedBusiness,
+        cash: 0,
+        revenue: selectedBusiness.revenue,
+        month: 1,
+        gameStarted: false,
+        roadOffset: 0,
+        cardsThisMonth: 0,
+        maxCardsPerMonth: 2,
+        targetCash: 1000,
+        maxMonths: 12,
+        gameEnded: false
+    };
+    
+    // Hide popup
+    document.getElementById('cardPopup').style.display = 'none';
+    
+    // Reset systems
+    resetCardSystem();
+    resetMoneySystem();
+    
+    // Restart game
+    initGameCards();
+    initMoneySystem();
+    gameState.gameStarted = true;
+    
+    // Start background music
+    startBackgroundMusic();
+    
+    // Update UI
+    updateUI();
+    
+    console.log('Game restarted');
+}
+
 function updateUI() {
     document.getElementById('businessType').textContent = gameState.selectedBusiness.name;
     document.getElementById('cash').textContent = gameState.cash;
@@ -103,11 +268,13 @@ function updateUI() {
         cardProgressElement.textContent = `Card ${gameState.cardsThisMonth} of ${gameState.maxCardsPerMonth}`;
     }
     
-    // Update month status
+    // Update month status with progress info
     const statusElement = document.getElementById('monthStatus');
     if (statusElement) {
         if (gameState.cardsThisMonth === 0) {
-            statusElement.textContent = 'Hit cards to progress!';
+            const progress = Math.round((gameState.cash / gameState.targetCash) * 100);
+            const monthsLeft = gameState.maxMonths - gameState.month + 1;
+            statusElement.textContent = `Goal: $${gameState.targetCash} (${progress}%) | ${monthsLeft} months left`;
             statusElement.style.color = '#4CAF50';
         } else if (gameState.cardsThisMonth === 1) {
             statusElement.textContent = 'One more card to complete month!';

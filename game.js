@@ -7,7 +7,13 @@ let gameState = {
     gameStarted: false,
     roadOffset: 0,
     cardsThisMonth: 0, // Track cards encountered this month
-    maxCardsPerMonth: 2 // 2 cards = 1 month
+    maxCardsPerMonth: 2, // 2 cards = 1 month
+    // Game progression
+    targetCash: 1000, // Win condition: reach $1000
+    maxMonths: 12, // Game over after 12 months if target not reached
+    gameEnded: false,
+    // Pause system
+    paused: false
 };
 
 // Player sprite
@@ -55,9 +61,13 @@ function selectBusiness(businessId) {
     document.getElementById('gameCanvas').style.display = 'block';
     document.getElementById('gameUI').style.display = 'block';
     document.getElementById('backButton').style.display = 'block';
+    document.getElementById('pauseButton').style.display = 'block';
     
     // Update UI
     updateUI();
+    
+    // Start background music
+    startBackgroundMusic();
     
     // Start game
     initCanvas();
@@ -71,9 +81,14 @@ function selectBusiness(businessId) {
 
 function goBack() {
     gameState.gameStarted = false;
+    
+    // Stop background music
+    stopBackgroundMusic();
+    
     backgroundDecorations = [];
     resetCardSystem(); // Reset card system
     resetMoneySystem(); // Reset money system
+    
     gameState = {
         selectedBusiness: null,
         cash: 0,
@@ -82,13 +97,18 @@ function goBack() {
         gameStarted: false,
         roadOffset: 0,
         cardsThisMonth: 0,
-        maxCardsPerMonth: 2
+        maxCardsPerMonth: 2,
+        targetCash: 1000,
+        maxMonths: 12,
+        gameEnded: false,
+        paused: false
     };
     
     document.getElementById('businessSelection').style.display = 'flex';
     document.getElementById('gameCanvas').style.display = 'none';
     document.getElementById('gameUI').style.display = 'none';
     document.getElementById('backButton').style.display = 'none';
+    document.getElementById('pauseButton').style.display = 'none';
 }
 
 function updateUI() {
@@ -99,7 +119,7 @@ function updateUI() {
 }
 
 function update() {
-    if (!gameState.gameStarted) return;
+    if (!gameState.gameStarted || gameState.paused) return;
     
     // Update road animation
     gameState.roadOffset += GAME_SPEED;
@@ -145,11 +165,110 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
+function togglePause() {
+    if (gameState.gameEnded) return;
+    
+    gameState.paused = !gameState.paused;
+    
+    if (gameState.paused) {
+        // Pause background music
+        if (audioSettings.musicEnabled) {
+            stopBackgroundMusic();
+        }
+        // Show pause overlay
+        showPauseScreen();
+    } else {
+        // Resume background music if enabled
+        if (audioSettings.musicEnabled) {
+            startBackgroundMusic();
+        }
+        // Hide pause overlay
+        hidePauseScreen();
+    }
+    
+    console.log('Game', gameState.paused ? 'paused' : 'resumed');
+}
+
+function showPauseScreen() {
+    // Show pause popup
+    document.getElementById('cardPopup').style.display = 'flex';
+    document.getElementById('cardDescription').innerHTML = `
+        <h2 style="color: #FF9800; margin-bottom: 15px;">⏸️ GAME PAUSED</h2>
+        <p>Game is paused. Click Resume to continue.</p>
+        <p><strong>Current Cash: $${gameState.cash}</strong></p>
+        <p><strong>Month: ${gameState.month}</strong></p>
+        <p><strong>Goal: $${gameState.targetCash}</strong></p>
+    `;
+    
+    // Change button to resume
+    const popupButtons = document.querySelector('.popup-buttons');
+    popupButtons.innerHTML = `
+        <button onclick="togglePause()" class="popup-btn" style="background: #4CAF50;">▶️ Resume</button>
+        <button onclick="goBack()" class="popup-btn" style="background: #e74c3c;">🏠 Main Menu</button>
+    `;
+}
+
+function hidePauseScreen() {
+    document.getElementById('cardPopup').style.display = 'none';
+    
+    // Restore original popup content
+    document.getElementById('cardDescription').textContent = 'You encountered a business opportunity!';
+    const popupButtons = document.querySelector('.popup-buttons');
+    popupButtons.innerHTML = `<button onclick="closePopup()" class="popup-btn">Continue</button>`;
+}
+
 // Initialize
 window.addEventListener('resize', () => {
     if (gameState.gameStarted) {
         initCanvas();
     }
+});
+
+// Keyboard controls
+window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.code === 'Escape') {
+        e.preventDefault();
+        if (gameState.gameStarted && !gameState.gameEnded) {
+            togglePause();
+        }
+    }
+});
+
+// Touch controls for mobile
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (!gameState.gameStarted || gameState.paused || gameState.gameEnded) return;
+    
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    // Check if touching a card (simple collision detection)
+    if (currentCard && currentCard.z > 0 && currentCard.z < 5) {
+        const { x: cardX, y: cardY, scale } = worldToScreen(currentCard.x, currentCard.z);
+        const cardSize = Math.floor(150 * scale);
+        
+        if (Math.abs(x - cardX) < cardSize/2 && Math.abs(y - cardY) < cardSize/2) {
+            hitCard();
+        }
+    }
+});
+
+// Double tap to pause on mobile
+let lastTouchTime = 0;
+canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    const currentTime = new Date().getTime();
+    const tapLength = currentTime - lastTouchTime;
+    
+    if (tapLength < 500 && tapLength > 0) {
+        // Double tap detected
+        if (gameState.gameStarted && !gameState.gameEnded) {
+            togglePause();
+        }
+    }
+    lastTouchTime = currentTime;
 });
 
 window.addEventListener('load', () => {

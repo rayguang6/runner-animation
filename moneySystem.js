@@ -138,6 +138,9 @@ function drawMoneySystem() {
 function collectMoney(money, index) {
     if (!money) return;
     
+    // Play cash sound
+    playSound('cash');
+    
     // Create collection effect at money position
     const { x, y } = worldToScreen(money.x, money.z);
     collectionEffect = {

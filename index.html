@@ -24,10 +24,19 @@
         <div style="margin-bottom: 8px;">🏢 Business: <span id="businessType">None</span></div>
         <div style="margin-bottom: 8px;">🃏 <span id="cardProgress">Card 0 of 2</span></div>
         <div id="monthStatus" style="color: #4CAF50; font-weight: bold; margin-top: 12px;">Hit cards to progress!</div>
+        
+        <!-- Audio Controls -->
+        <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.3);">
+            <button id="soundToggle" onclick="toggleSound()" style="margin-right: 10px; padding: 5px 10px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">🔊 Sound</button>
+            <button id="musicToggle" onclick="toggleMusic()" style="padding: 5px 10px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">🎵 Music</button>
+        </div>
     </div>
 
     <!-- Back Button -->
     <button id="backButton" onclick="goBack()">← Back</button>
+    
+    <!-- Pause Button -->
+    <button id="pauseButton" onclick="togglePause()" style="position: absolute; top: 20px; right: 120px; background: #FF9800; border: none; color: white; padding: 10px 20px; border-radius: 5px; cursor: pointer; display: none;">⏸️ Pause</button>
 
     <!-- Card Popup -->
     <div id="cardPopup" class="popup-overlay">
@@ -41,6 +50,7 @@
     </div>
 
     <script src="config.js"></script>
+    <script src="audioSystem.js"></script>
     <script src="renderer.js"></script>
     <script src="cardSystem.js"></script>
     <script src="moneySystem.js"></script>

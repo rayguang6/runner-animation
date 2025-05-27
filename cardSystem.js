@@ -4,51 +4,64 @@ let currentCard = null; // Just one card at a time
 // Simple image loading for cards
 let cardImage = null;
 
+const CARD_TYPES = ['card1', 'card2', 'card3', 'card4'];
+const cardImages = {};
+
+function loadCardImages() {
+    CARD_TYPES.forEach(type => {
+        const img = new Image();
+        img.src = `images/cards/${type}.png`;
+        cardImages[type] = img;
+    });
+}
+
+let isFirstCard = true;
+
+function getRandomCardType() {
+    return CARD_TYPES[Math.floor(Math.random() * CARD_TYPES.length)];
+}
+
 function initGameCards() {
     currentCard = null;
-    
-    // Load card image
+    isFirstCard = true;
+    loadCardImages();
     cardImage = new Image();
     cardImage.src = 'images/card.png';
     cardImage.onload = () => {
-        console.log('Card image loaded successfully');
+        console.log('Fallback card image loaded successfully');
     };
     cardImage.onerror = () => {
-        console.log('Failed to load card image, will use emoji fallback');
+        console.log('Failed to load fallback card image, will use emoji fallback');
         cardImage = null;
     };
-    
-    spawnCard();
+    spawnCard(getRandomCardType());
     console.log('Card system initialized');
 }
 
-function spawnCard() {
-    // 🎯 FASTER ENGAGEMENT: Check for money conflicts before spawning card
-    let spawnDistance = 3; // Start at distance 3 (was 4) - much closer!
-    
+function spawnCard(type) {
+    // First card far, others close
+    let spawnDistance = isFirstCard ? 8 : 3.5;
+    isFirstCard = false;
     // Check if there's money too close and find a safe distance
     let safeToSpawn = false;
-    while (!safeToSpawn && spawnDistance < 4) { // Reduced max distance from 10 to 8
+    while (!safeToSpawn && spawnDistance < 12) {
         safeToSpawn = true;
-        
-        // Check all money objects
         for (let money of moneyObjects) {
-            if (Math.abs(money.z - spawnDistance) < 2.0) { // Reduced from 2.5 to 2.0 for closer spacing
+            if (Math.abs(money.z - spawnDistance) < 2.0) {
                 safeToSpawn = false;
                 break;
             }
         }
-        
         if (!safeToSpawn) {
-            spawnDistance += 0.5; // Even smaller jumps (was 1.0) for precise positioning
+            spawnDistance += 0.5;
         }
     }
-    
+    const cardType = type || getRandomCardType();
     currentCard = {
-        z: spawnDistance, // Spawn at safe distance
-        type: 'business' // Simple for now
+        z: spawnDistance,
+        type: cardType
     };
-    console.log(`New card spawned at distance ${spawnDistance}`);
+    console.log(`New card spawned at distance ${spawnDistance} with type ${cardType}`);
 }
 
 function updateGameCards() {
@@ -69,24 +82,30 @@ function updateGameCards() {
 
 function drawGameCards() {
     if (!currentCard || currentCard.z <= 0) return;
-    
-    const { x, y, scale } = worldToScreen(0, currentCard.z); // Always center of road
-    
-    // 🎯 HOW TO CONTROL SIZE: Change this number to make cards bigger/smaller
-    const cardSize = Math.floor(300 * scale); // 150 = bigger size! (was 100)
-    
+    const { x, y, scale } = worldToScreen(0, currentCard.z);
+    const cardSize = Math.floor(300 * scale);
     if (cardSize > 10) {
-        if (cardImage && cardImage.complete) {
-            // Use the card image
+        // Try to use the type-specific image
+        let img = cardImages[currentCard.type];
+        if (img && img.complete && img.naturalWidth > 0) {
+            ctx.drawImage(
+                img,
+                x - cardSize/2,
+                y - cardSize,
+                cardSize,
+                cardSize * 1.4
+            );
+        } else if (cardImage && cardImage.complete && cardImage.naturalWidth > 0) {
+            // Fallback to default card image
             ctx.drawImage(
                 cardImage,
                 x - cardSize/2,
                 y - cardSize,
                 cardSize,
-                cardSize * 1.4 // Make it taller like a card
+                cardSize * 1.4
             );
         } else {
-            // Simple emoji fallback - no complex drawing!
+            // Fallback to emoji
             ctx.font = `${cardSize}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
@@ -97,17 +116,20 @@ function drawGameCards() {
 
 function resetCardSystem() {
     currentCard = null;
+    isFirstCard = true;
 }
 
 // 🎯 EASY SPAWNING FUNCTIONS - Add these to spawn cards easily!
 
-// Spawn a card at specific distance
-function spawnCardAt(distance = 4) {
+// Spawn a card at specific distance and type
+function spawnCardAt(distance = 3.5, type) {
+    const cardType = type || getRandomCardType();
     currentCard = {
-        z: distance, // How far away to spawn
-        type: 'business'
+        z: distance,
+        type: cardType
     };
-    console.log(`Card spawned at distance ${distance}`);
+    isFirstCard = false;
+    console.log(`Card spawned at distance ${distance} with type ${cardType}`);
 }
 
 // Check if there's currently a card
