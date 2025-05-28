@@ -89,8 +89,12 @@ function initBackgroundDecorations() {
         return;
     }
     
+    // Detect mobile devices and reduce decoration count
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const maxDecorations = isMobile ? 12 : 20; // Reduce from 20 to 12 on mobile
+    
     // Create initial decorations with varied positioning
-    for (let i = 0; i < 20; i++) { // Increased from 12 to 20
+    for (let i = 0; i < maxDecorations; i++) {
         const distance = Math.random() * 4 + 1; // 1 to 5 units away
         spawnDecoration(distance);
     }
@@ -144,20 +148,33 @@ function spawnDecoration(z = 4) {
 function updateBackgroundDecorations() {
     if (!gameState.gameStarted) return;
     
-    // Update existing decorations
-    backgroundDecorations = backgroundDecorations.filter(decoration => {
+    // Update existing decorations - use for loop instead of filter for better performance
+    for (let i = backgroundDecorations.length - 1; i >= 0; i--) {
+        const decoration = backgroundDecorations[i];
         decoration.z -= GAME_SPEED * 2.5; // Move toward player
         decoration.bobOffset += 0.015; // Gentle bobbing
         
         // Remove decorations that are behind player OR too far to the sides to be visible
-        const { x: screenX } = worldToScreen(decoration.x, decoration.z);
-        const isVisible = screenX > -200 && screenX < canvas.width + 200; // Some margin for visibility
+        if (decoration.z <= -0.5) {
+            backgroundDecorations.splice(i, 1);
+            continue;
+        }
         
-        return decoration.z > -0.5 && (decoration.z > 0.3 || isVisible);
-    });
+        // Check visibility only for decorations that might be off-screen
+        if (decoration.z > 0.3) {
+            const { x: screenX } = worldToScreen(decoration.x, decoration.z);
+            const isVisible = screenX > -200 && screenX < canvas.width + 200;
+            if (!isVisible) {
+                backgroundDecorations.splice(i, 1);
+            }
+        }
+    }
     
     // Spawn new decorations more frequently for better distribution
-    if (Math.random() < 0.025) { // Increased from 0.015 to 0.025
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const spawnRate = isMobile ? 0.015 : 0.025; // Reduce spawn rate on mobile
+    
+    if (Math.random() < spawnRate) {
         spawnDecoration(Math.random() * 2 + 4); // Spawn between 4-6 units away
     }
 }
@@ -205,9 +222,11 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 function initCanvas() {
+    // Set canvas size to window size first
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     
+    // Disable image smoothing for pixel art
     ctx.imageSmoothingEnabled = false;
     ctx.webkitImageSmoothingEnabled = false;
     ctx.mozImageSmoothingEnabled = false;

@@ -16,6 +16,11 @@ let gameState = {
     paused: false
 };
 
+// Frame rate limiting for smooth performance
+let lastFrameTime = 0;
+const targetFPS = 60;
+const frameInterval = 1000 / targetFPS;
+
 // Player sprite
 let playerSprite = null;
 
@@ -157,7 +162,15 @@ function draw() {
     }
 }
 
-function gameLoop() {
+function gameLoop(currentTime = 0) {
+    // Frame rate limiting for consistent performance
+    if (currentTime - lastFrameTime < frameInterval) {
+        requestAnimationFrame(gameLoop);
+        return;
+    }
+    
+    lastFrameTime = currentTime;
+    
     // Always run the loop, but only update/draw when game is started
     update();
     draw();

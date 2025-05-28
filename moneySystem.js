@@ -48,11 +48,14 @@ function spawnMoney() {
 function updateMoneySystem() {
     if (!gameState.gameStarted) return;
     
-    // Update all money objects
+    // Update all money objects - use for loop instead of filter for better performance
     for (let i = moneyObjects.length - 1; i >= 0; i--) {
         const money = moneyObjects[i];
         
-        if (money.collected) continue;
+        if (money.collected) {
+            moneyObjects.splice(i, 1);
+            continue;
+        }
         
         // Move money toward player
         money.z -= GAME_SPEED * 2.5;
@@ -60,6 +63,7 @@ function updateMoneySystem() {
         // Check collision - money auto-collects when it reaches the player
         if (money.z <= 0.3) {
             collectMoney(money, i);
+            continue;
         }
         
         // Remove money that's too far behind
