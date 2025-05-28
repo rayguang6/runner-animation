@@ -87,5 +87,5 @@ const BUSINESS_TYPES = {
 };
 
 // Game Settings
-const GAME_SPEED = 0.01;
+const GAME_SPEED = 0.025;
 const ANIMATION_SPEED = 0.1;
