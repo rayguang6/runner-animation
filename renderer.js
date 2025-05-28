@@ -23,6 +23,10 @@ class Sprite {
         
         // Pre-scaled frame storage
         this.scaledFrames = [];
+        
+        // Time-based animation
+        this.lastFrameTime = 0;
+        this.frameDuration = 1000 / 12; // 12 FPS for sprite animation
     }
 
     createScaledFrames() {
@@ -55,10 +59,11 @@ class Sprite {
     update() {
         if (!this.isLoaded) return;
         
-        this.frameCounter++;
-        if (this.frameCounter >= this.frameSpeed) {
-            this.frameCounter = 0;
+        // Time-based animation for consistent speed
+        const now = Date.now();
+        if (now - this.lastFrameTime >= this.frameDuration) {
             this.currentFrame = (this.currentFrame + 1) % this.frames.length;
+            this.lastFrameTime = now;
         }
     }
 

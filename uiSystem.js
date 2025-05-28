@@ -12,14 +12,6 @@ function hitCard() {
     
     console.log(`Card hit! Cards this month: ${gameState.cardsThisMonth}/${gameState.maxCardsPerMonth}`);
     
-    // Spawn some money immediately when first card is hit (for immediate feedback)
-    // if (gameState.cardsThisMonth === 1) {
-    //     console.log('First card hit - spawning immediate money for feedback');
-    //     setTimeout(() => {
-    //         spawnTestMoney();
-    //     }, 2000); // Spawn after popup closes
-    // }
-    
     // Check if month is complete
     if (gameState.cardsThisMonth >= gameState.maxCardsPerMonth) {
         endMonth();
@@ -113,10 +105,10 @@ function closePopup() {
     // Update UI
     updateUI();
     
-    // Spawn next card after a balanced delay - fast enough to maintain engagement, slow enough for decision-making
+    // Spawn next card after a balanced delay
     setTimeout(() => {
         spawnCard();
-    }, 1000); // 🎯 FASTER ENGAGEMENT: 1 second for better flow (was 1.5 seconds)
+    }, 1000);
     
     console.log('Game resumed after popup');
 }
@@ -182,7 +174,7 @@ function showVictoryScreen() {
     document.getElementById('cardDescription').innerHTML = `
         <h2 style="color: #4CAF50; margin-bottom: 15px;">🎉 VICTORY! 🎉</h2>
         <p>Congratulations! You've built a successful business!</p>
-        <p><strong>Final Cash: $${gameState.cash}</strong></p>
+        <p><strong>Final Cash: ${gameState.cash}</strong></p>
         <p><strong>Months Played: ${gameState.month - 1}</strong></p>
         <p><strong>Business: ${gameState.selectedBusiness.name}</strong></p>
     `;
@@ -191,7 +183,7 @@ function showVictoryScreen() {
     const popupButtons = document.querySelector('.popup-buttons');
     popupButtons.innerHTML = `
         <button onclick="restartGame()" class="popup-btn" style="background: #4CAF50;">🎮 Play Again</button>
-        <button onclick="goBack()" class="popup-btn" style="background: #2196F3;">🏢 Choose Business</button>
+        <button onclick="goBackFromEnd()" class="popup-btn" style="background: #2196F3;">🏢 Choose Business</button>
     `;
 }
 
@@ -207,8 +199,8 @@ function showGameOverScreen() {
     document.getElementById('cardDescription').innerHTML = `
         <h2 style="color: #e74c3c; margin-bottom: 15px;">💼 TIME'S UP! 💼</h2>
         <p>You ran out of time to reach your goal!</p>
-        <p><strong>Final Cash: $${gameState.cash}</strong></p>
-        <p><strong>Target: $${gameState.targetCash}</strong></p>
+        <p><strong>Final Cash: ${gameState.cash}</strong></p>
+        <p><strong>Target: ${gameState.targetCash}</strong></p>
         <p><strong>Months Played: ${gameState.maxMonths}</strong></p>
         <p>Try a different strategy next time!</p>
     `;
@@ -217,7 +209,7 @@ function showGameOverScreen() {
     const popupButtons = document.querySelector('.popup-buttons');
     popupButtons.innerHTML = `
         <button onclick="restartGame()" class="popup-btn" style="background: #e74c3c;">🎮 Try Again</button>
-        <button onclick="goBack()" class="popup-btn" style="background: #2196F3;">🏢 Choose Business</button>
+        <button onclick="goBackFromEnd()" class="popup-btn" style="background: #2196F3;">🏢 Choose Business</button>
     `;
 }
 
@@ -236,11 +228,17 @@ function restartGame() {
         maxCardsPerMonth: 2,
         targetCash: 1000,
         maxMonths: 12,
-        gameEnded: false
+        gameEnded: false,
+        paused: false
     };
     
     // Hide popup
     document.getElementById('cardPopup').style.display = 'none';
+    
+    // Reset popup content to default
+    document.getElementById('cardDescription').textContent = 'You encountered a business opportunity!';
+    const popupButtons = document.querySelector('.popup-buttons');
+    popupButtons.innerHTML = `<button onclick="closePopup()" class="popup-btn">Continue</button>`;
     
     // Reset systems
     resetCardSystem();
@@ -291,4 +289,4 @@ function updateUI() {
     
     // Log current state for debugging
     console.log(`UI Updated - Month: ${gameState.month}, Cash: $${gameState.cash}, Cards: ${gameState.cardsThisMonth}/2`);
-} 
+}

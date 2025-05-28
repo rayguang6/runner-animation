@@ -39,7 +39,7 @@ function initPlayerSprite() {
         src: characterConfig.src,
         frameWidth: characterConfig.frameWidth,
         frameHeight: characterConfig.frameHeight,
-        frameSpeed: isMobile ? 12 : characterConfig.frameSpeed, // Slower animation on mobile
+        frameSpeed: 4, // Faster animation - lower number = faster
         scale: characterConfig.scale,
         frames: characterConfig.frames
     });
@@ -126,6 +126,32 @@ function goBack() {
     document.getElementById('pauseButton').style.display = 'none';
 }
 
+// FIX: Function to go back from pause screen
+function goBackFromPause() {
+    // Hide pause screen first
+    hidePauseScreen();
+    
+    // Reset pause state
+    gameState.paused = false;
+    
+    // Then go back to menu
+    goBack();
+}
+
+// FIX: Function to go back from end game screens
+function goBackFromEnd() {
+    // Hide popup first
+    document.getElementById('cardPopup').style.display = 'none';
+    
+    // Reset popup content to default
+    document.getElementById('cardDescription').textContent = 'You encountered a business opportunity!';
+    const popupButtons = document.querySelector('.popup-buttons');
+    popupButtons.innerHTML = `<button onclick="closePopup()" class="popup-btn">Continue</button>`;
+    
+    // Then call the regular goBack function
+    goBack();
+}
+
 function updateUI() {
     document.getElementById('businessType').textContent = gameState.selectedBusiness.name;
     document.getElementById('cash').textContent = gameState.cash;
@@ -144,11 +170,9 @@ function update() {
         gameState.roadOffset -= 1.0;
     }
     
-    // Update sprite animation less frequently on mobile
+    // Update sprite animation on every frame for smooth running
     if (playerSprite) {
-        if (!isMobile || Math.floor(currentTime / 100) % 2 === 0) {
-            playerSprite.update();
-        }
+        playerSprite.update();
     }
     
     // Update background decorations
@@ -235,16 +259,16 @@ function showPauseScreen() {
     document.getElementById('cardDescription').innerHTML = `
         <h2 style="color: #FF9800; margin-bottom: 15px;">⏸️ GAME PAUSED</h2>
         <p>Game is paused. Click Resume to continue.</p>
-        <p><strong>Current Cash: $${gameState.cash}</strong></p>
+        <p><strong>Current Cash: ${gameState.cash}</strong></p>
         <p><strong>Month: ${gameState.month}</strong></p>
-        <p><strong>Goal: $${gameState.targetCash}</strong></p>
+        <p><strong>Goal: ${gameState.targetCash}</strong></p>
     `;
     
-    // Change button to resume
+    // Change button to resume - FIX: Use goBackFromPause instead of goBack
     const popupButtons = document.querySelector('.popup-buttons');
     popupButtons.innerHTML = `
         <button onclick="togglePause()" class="popup-btn" style="background: #4CAF50;">▶️ Resume</button>
-        <button onclick="goBack()" class="popup-btn" style="background: #e74c3c;">🏠 Main Menu</button>
+        <button onclick="goBackFromPause()" class="popup-btn" style="background: #e74c3c;">🏠 Main Menu</button>
     `;
 }
 
