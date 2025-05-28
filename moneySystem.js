@@ -1,9 +1,26 @@
-// === SIMPLE MONEY SYSTEM ===
+// === OPTIMIZED MONEY SYSTEM ===
 let moneyObjects = []; // Array to hold multiple money objects
 let collectionEffect = null; // Visual effect when money is collected
 
 // Simple image loading for cash
 let cashImage = null;
+
+// Object pooling for money
+const moneyPool = [];
+const MAX_MONEY_POOL_SIZE = 20;
+
+function getMoneyFromPool() {
+    if (moneyPool.length > 0) {
+        return moneyPool.pop();
+    }
+    return {};
+}
+
+function returnMoneyToPool(money) {
+    if (moneyPool.length < MAX_MONEY_POOL_SIZE) {
+        moneyPool.push(money);
+    }
+}
 
 function initMoneySystem() {
     moneyObjects = [];
@@ -20,45 +37,37 @@ function initMoneySystem() {
         cashImage = null;
     };
     
-    // Spawn some test money after 2 seconds for immediate testing
-    // setTimeout(() => {
-    //     if (gameState.gameStarted) {
-    //         console.log('Spawning test money for immediate testing...');
-    //         spawnTestMoney();
-    //     }
-    // }, 2000);
-    
     console.log('Money system initialized');
 }
 
 function spawnMoney() {
     if (!gameState.selectedBusiness) return;
     
-    const newMoney = {
-        z: 4, // Always spawn 4 units away
-        value: Math.floor(gameState.revenue * 0.1), // 10% of monthly revenue
-        x: 0, // Spawn in the middle of the road like cards
-        collected: false
-    };
+    const newMoney = getMoneyFromPool();
+    newMoney.z = 4; // Always spawn 4 units away
+    newMoney.value = Math.floor(gameState.revenue * 0.1); // 10% of monthly revenue
+    newMoney.x = 0; // Spawn in the middle of the road like cards
+    newMoney.collected = false;
     
     moneyObjects.push(newMoney);
     console.log(`Money spawned: $${newMoney.value} (Total money objects: ${moneyObjects.length})`);
 }
 
-function updateMoneySystem() {
+function updateMoneySystem(deltaMultiplier = 1) {
     if (!gameState.gameStarted) return;
     
-    // Update all money objects - use for loop instead of filter for better performance
+    // Update all money objects
     for (let i = moneyObjects.length - 1; i >= 0; i--) {
         const money = moneyObjects[i];
         
         if (money.collected) {
+            returnMoneyToPool(money);
             moneyObjects.splice(i, 1);
             continue;
         }
         
-        // Move money toward player
-        money.z -= GAME_SPEED * 2.5;
+        // Move money toward player with delta time adjustment
+        money.z -= GAME_SPEED * 2.5 * deltaMultiplier;
         
         // Check collision - money auto-collects when it reaches the player
         if (money.z <= 0.3) {
@@ -68,13 +77,14 @@ function updateMoneySystem() {
         
         // Remove money that's too far behind
         if (money.z < -2) {
+            returnMoneyToPool(money);
             moneyObjects.splice(i, 1);
         }
     }
     
     // Update collection effect
     if (collectionEffect) {
-        collectionEffect.timer--;
+        collectionEffect.timer -= deltaMultiplier;
         if (collectionEffect.timer <= 0) {
             collectionEffect = null;
         }
@@ -82,15 +92,21 @@ function updateMoneySystem() {
 }
 
 function drawMoneySystem() {
+    // Pre-calculate visible bounds
+    const leftBound = -100;
+    const rightBound = canvas.width + 100;
+    
     // Draw all money objects
     moneyObjects.forEach(money => {
-        if (money.z > 0 && !money.collected) {
+        if (money.z > 0 && money.z < 7 && !money.collected) {
             const { x, y, scale } = worldToScreen(money.x, money.z);
             
-            // 🎯 HOW TO CONTROL SIZE: Change this number to make money bigger/smaller
-            const moneySize = Math.floor(300 * scale); // 120 = bigger size! (was 80)
+            // Skip off-screen money
+            if (x < leftBound || x > rightBound) return;
             
-            if (moneySize > 10) { // Minimum visible size
+            const moneySize = Math.floor(300 * scale);
+            
+            if (moneySize > 10) {
                 if (cashImage && cashImage.complete) {
                     // Use the cash image
                     ctx.drawImage(
@@ -101,15 +117,18 @@ function drawMoneySystem() {
                         moneySize
                     );
                 } else {
-                    // Simple emoji fallback - no complex drawing!
+                    // Simple emoji fallback
+                    ctx.save();
                     ctx.font = `${moneySize}px Arial`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillText('💰', x, y);
+                    ctx.restore();
                 }
                 
-                // Show value text
+                // Show value text only for larger sizes
                 if (scale > 0.3) {
+                    ctx.save();
                     ctx.fillStyle = '#FFFFFF';
                     ctx.strokeStyle = '#000';
                     ctx.lineWidth = 2;
@@ -118,6 +137,7 @@ function drawMoneySystem() {
                     ctx.textBaseline = 'top';
                     ctx.strokeText(`$${money.value}`, x, y + moneySize/2 + 5);
                     ctx.fillText(`$${money.value}`, x, y + moneySize/2 + 5);
+                    ctx.restore();
                 }
             }
         }
@@ -162,11 +182,13 @@ function collectMoney(money, index) {
     
     console.log(`💰 Collected $${money.value}! Total cash: $${gameState.cash}`);
     
-    // Remove money from moneyObjects
-    moneyObjects.splice(index, 1);
+    // Mark as collected (will be removed in update loop)
+    money.collected = true;
 }
 
 function resetMoneySystem() {
+    // Return all money to pool
+    moneyObjects.forEach(money => returnMoneyToPool(money));
     moneyObjects = [];
     collectionEffect = null;
     console.log('Money system reset');
@@ -174,14 +196,14 @@ function resetMoneySystem() {
 
 // Check if there's enough space to spawn money (avoid collision with cards)
 function hasEnoughSpaceForMoney(z) {
-    // 🎯 FASTER FLOW: Require enough distance from cards but allow closer spawning
-    if (currentCard && Math.abs(currentCard.z - z) < 2.0) { // Reduced from 2.5 to 2.0
+    // Require enough distance from cards
+    if (currentCard && Math.abs(currentCard.z - z) < 2.0) {
         return false;
     }
     
     // Check if there's other money too close
     for (let money of moneyObjects) {
-        if (Math.abs(money.z - z) < 1.2) { // Reduced from 1.5 to 1.2 for tighter spacing
+        if (Math.abs(money.z - z) < 1.2) {
             return false;
         }
     }
@@ -189,63 +211,51 @@ function hasEnoughSpaceForMoney(z) {
     return true;
 }
 
-// 🎯 HOW TO CONTROL SPAWNING: This function controls when money appears
 function spawnMonthlyRevenue() {
     const totalRevenue = gameState.revenue;
-    const numBills = Math.floor(Math.random() * 3) + 3; // 3-5 bills (change these numbers!)
+    const numBills = Math.floor(Math.random() * 3) + 3; // 3-5 bills
     
     for (let i = 0; i < numBills; i++) {
         setTimeout(() => {
             if (gameState.gameStarted) {
                 const billValue = Math.floor(totalRevenue / numBills);
-                let spawnZ = 1 + (i * 0.5); // 🎯 MUCH CLOSER: Start at 3.5, space by 1.5 units
+                let spawnZ = 3.5 + (i * 1.5);
                 
-                while (!hasEnoughSpaceForMoney(spawnZ) && spawnZ < 10) { // Reduced max distance from 12 to 10
-                    spawnZ += 0.5; // Smaller jumps for precise positioning
+                while (!hasEnoughSpaceForMoney(spawnZ) && spawnZ < 10) {
+                    spawnZ += 0.5;
                 }
                 
-                const newMoney = {
-                    z: spawnZ, // Distance from player
-                    value: billValue, // How much money
-                    x: 0, // Position left/right (0 = center)
-                    collected: false
-                };
+                const newMoney = getMoneyFromPool();
+                newMoney.z = spawnZ;
+                newMoney.value = billValue;
+                newMoney.x = 0;
+                newMoney.collected = false;
+                
                 moneyObjects.push(newMoney);
                 console.log(`Monthly revenue bill spawned: $${billValue} at z=${spawnZ} (${i + 1}/${numBills})`);
             }
-        }, i * 600); // 🎯 SLIGHTLY FASTER: 0.6 seconds between each bill (was 0.8 seconds)
+        }, i * 600);
     }
 }
 
-// 🎯 EASY SPAWNING FUNCTIONS - Add these to spawn money easily!
-
-// Spawn a single money at specific distance
+// Test spawning functions
 function spawnMoneyAt(distance, value = 50) {
-    const newMoney = {
-        z: distance,
-        value: value,
-        x: 0,
-        collected: false
-    };
+    const newMoney = getMoneyFromPool();
+    newMoney.z = distance;
+    newMoney.value = value;
+    newMoney.x = 0;
+    newMoney.collected = false;
+    
     moneyObjects.push(newMoney);
     console.log(`Money spawned at distance ${distance}: $${value}`);
 }
 
-// 🎯 SIMPLE TEST FUNCTION: Spawn money at reasonable distance for testing
 function spawnTestMoney() {
-    const testMoney = {
-        z: 4, // Closer distance (was 5) for faster engagement
-        value: 50, // How much money
-        x: 0, // Position (0 = center, negative = left, positive = right)
-        collected: false
-    };
-    moneyObjects.push(testMoney);
-    console.log(`Test money spawned: $${testMoney.value} at distance ${testMoney.z}`);
+    spawnMoneyAt(4, 50);
 }
 
-// Spawn multiple money in a line
-function spawnMoneyLine(count = 5, startDistance = 3, spacing = 1.2) { // Closer start and tighter spacing
+function spawnMoneyLine(count = 5, startDistance = 3, spacing = 1.2) {
     for (let i = 0; i < count; i++) {
         spawnMoneyAt(startDistance + (i * spacing), 25);
     }
-} 
+}

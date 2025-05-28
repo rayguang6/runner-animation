@@ -16,13 +16,19 @@ let gameState = {
     paused: false
 };
 
-// Frame rate limiting for smooth performance
-let lastFrameTime = 0;
-const targetFPS = 60;
-const frameInterval = 1000 / targetFPS;
+// Performance optimization variables
+let animationId = null;
+let lastTime = 0;
+const targetFPS = 30; // Lower FPS for mobile (was 60)
+const frameTime = 1000 / targetFPS;
+let deltaTime = 0;
+let currentTime = 0;
 
 // Player sprite
 let playerSprite = null;
+
+// Mobile detection
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
 function initPlayerSprite() {
     if (!gameState.selectedBusiness) return;
@@ -33,7 +39,7 @@ function initPlayerSprite() {
         src: characterConfig.src,
         frameWidth: characterConfig.frameWidth,
         frameHeight: characterConfig.frameHeight,
-        frameSpeed: characterConfig.frameSpeed,
+        frameSpeed: isMobile ? 12 : characterConfig.frameSpeed, // Slower animation on mobile
         scale: characterConfig.scale,
         frames: characterConfig.frames
     });
@@ -81,10 +87,14 @@ function selectBusiness(businessId) {
     initGameCards(); // Initialize card system
     initMoneySystem(); // Initialize money system
     gameState.gameStarted = true;
-    gameLoop();
+    
+    // Start optimized game loop
+    lastTime = performance.now();
+    gameLoop(lastTime);
 }
 
 function goBack() {
+    cleanup();
     gameState.gameStarted = false;
     
     // Stop background music
@@ -123,30 +133,35 @@ function updateUI() {
     document.getElementById('revenue').textContent = gameState.revenue;
 }
 
+// OPTIMIZED UPDATE FUNCTION
 function update() {
     if (!gameState.gameStarted || gameState.paused) return;
     
-    // Update road animation
-    gameState.roadOffset += GAME_SPEED;
+    // Update road animation with delta time normalization
+    const deltaMultiplier = deltaTime / 16.67; // Normalize to 60fps baseline
+    gameState.roadOffset += GAME_SPEED * deltaMultiplier;
     if (gameState.roadOffset > 1.0) {
         gameState.roadOffset -= 1.0;
     }
     
-    // Update sprite animation
+    // Update sprite animation less frequently on mobile
     if (playerSprite) {
-        playerSprite.update();
+        if (!isMobile || Math.floor(currentTime / 100) % 2 === 0) {
+            playerSprite.update();
+        }
     }
     
     // Update background decorations
-    updateBackgroundDecorations();
+    updateBackgroundDecorations(deltaMultiplier);
     
     // Update game cards
-    updateGameCards();
+    updateGameCards(deltaMultiplier);
     
     // Update money system
-    updateMoneySystem();
+    updateMoneySystem(deltaMultiplier);
 }
 
+// OPTIMIZED DRAW FUNCTION
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
@@ -162,20 +177,32 @@ function draw() {
     }
 }
 
-function gameLoop(currentTime = 0) {
-    // Frame rate limiting for consistent performance
-    if (currentTime - lastFrameTime < frameInterval) {
-        requestAnimationFrame(gameLoop);
+// OPTIMIZED GAME LOOP
+function gameLoop(timestamp) {
+    animationId = requestAnimationFrame(gameLoop);
+    
+    currentTime = timestamp;
+    deltaTime = timestamp - lastTime;
+    
+    // Skip frame if not enough time has passed
+    if (deltaTime < frameTime) {
         return;
     }
     
-    lastFrameTime = currentTime;
+    // Update time for next frame
+    lastTime = timestamp - (deltaTime % frameTime);
     
-    // Always run the loop, but only update/draw when game is started
+    // Always run update and draw when game is active
     update();
     draw();
-    
-    requestAnimationFrame(gameLoop);
+}
+
+// CLEANUP FUNCTION
+function cleanup() {
+    if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+    }
 }
 
 function togglePause() {
@@ -230,10 +257,35 @@ function hidePauseScreen() {
     popupButtons.innerHTML = `<button onclick="closePopup()" class="popup-btn">Continue</button>`;
 }
 
+// Mobile-specific optimizations
+function initMobileOptimizations() {
+    if (isMobile) {
+        // Reduce canvas resolution on very high DPI screens
+        const pixelRatio = window.devicePixelRatio || 1;
+        if (pixelRatio > 2) {
+            const scale = 0.75;
+            canvas.style.width = canvas.width + 'px';
+            canvas.style.height = canvas.height + 'px';
+            canvas.width = Math.floor(canvas.width * scale);
+            canvas.height = Math.floor(canvas.height * scale);
+            ctx.scale(scale, scale);
+        }
+        
+        // Use CSS to ensure crisp rendering
+        canvas.style.imageRendering = 'crisp-edges';
+        canvas.style.imageRendering = 'pixelated';
+        
+        console.log('Mobile optimizations applied');
+    }
+}
+
 // Initialize
 window.addEventListener('resize', () => {
     if (gameState.gameStarted) {
         initCanvas();
+        if (isMobile) {
+            initMobileOptimizations();
+        }
     }
 });
 
@@ -247,10 +299,17 @@ window.addEventListener('keydown', (e) => {
     }
 });
 
-// Touch controls for mobile
+// Touch controls for mobile with throttling
+let touchThrottle = false;
 canvas.addEventListener('touchstart', (e) => {
+    if (touchThrottle) return;
+    touchThrottle = true;
+    
     e.preventDefault();
-    if (!gameState.gameStarted || gameState.paused || gameState.gameEnded) return;
+    if (!gameState.gameStarted || gameState.paused || gameState.gameEnded) {
+        touchThrottle = false;
+        return;
+    }
     
     const touch = e.touches[0];
     const rect = canvas.getBoundingClientRect();
@@ -266,14 +325,16 @@ canvas.addEventListener('touchstart', (e) => {
             hitCard();
         }
     }
-});
+    
+    setTimeout(() => { touchThrottle = false; }, 100);
+}, { passive: false });
 
 // Double tap to pause on mobile
 let lastTouchTime = 0;
 canvas.addEventListener('touchend', (e) => {
     e.preventDefault();
-    const currentTime = new Date().getTime();
-    const tapLength = currentTime - lastTouchTime;
+    const touchTime = new Date().getTime();
+    const tapLength = touchTime - lastTouchTime;
     
     if (tapLength < 500 && tapLength > 0) {
         // Double tap detected
@@ -281,10 +342,14 @@ canvas.addEventListener('touchend', (e) => {
             togglePause();
         }
     }
-    lastTouchTime = currentTime;
-});
+    lastTouchTime = touchTime;
+}, { passive: false });
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', cleanup);
 
 window.addEventListener('load', () => {
     generateBusinessCards();
     initCanvas();
+    initMobileOptimizations();
 });

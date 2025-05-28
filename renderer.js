@@ -79,8 +79,25 @@ class Sprite {
     }
 }
 
-// === LANDSCAPE DECORATION SYSTEM ===
+// === OPTIMIZED LANDSCAPE DECORATION SYSTEM ===
 let backgroundDecorations = [];
+
+// Object pooling for decorations
+const decorationPool = [];
+const MAX_POOL_SIZE = 30;
+
+function getDecorationFromPool() {
+    if (decorationPool.length > 0) {
+        return decorationPool.pop();
+    }
+    return {};
+}
+
+function returnDecorationToPool(decoration) {
+    if (decorationPool.length < MAX_POOL_SIZE) {
+        decorationPool.push(decoration);
+    }
+}
 
 function initBackgroundDecorations() {
     backgroundDecorations = [];
@@ -89,9 +106,8 @@ function initBackgroundDecorations() {
         return;
     }
     
-    // Detect mobile devices and reduce decoration count
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const maxDecorations = isMobile ? 12 : 20; // Reduce from 20 to 12 on mobile
+    // Reduce decoration count on mobile
+    const maxDecorations = isMobile ? 8 : 15;
     
     // Create initial decorations with varied positioning
     for (let i = 0; i < maxDecorations; i++) {
@@ -105,116 +121,93 @@ function spawnDecoration(z = 4) {
         return;
     }
     
+    // Limit max decorations
+    const maxDecorations = isMobile ? 8 : 15;
+    if (backgroundDecorations.length >= maxDecorations) {
+        return;
+    }
+    
     const decorationEmojis = gameState.selectedBusiness.background.decorations;
     const randomEmoji = decorationEmojis[Math.floor(Math.random() * decorationEmojis.length)];
     
-    // Much wider spread - can be anywhere on the landscape
+    // Reuse decoration from pool
+    const newDecoration = getDecorationFromPool();
+    
+    // Set properties
     const side = Math.random() > 0.5 ? 1 : -1;
+    const sideDistance = Math.random() * 3.0 + 1.0;
     
-    // Three zones with better distribution: roadside (close), landscape (medium), horizon (far)
-    const zoneRandom = Math.random();
-    let sideDistance;
-    let baseSize;
-    
-    if (zoneRandom < 0.5) { // Increased roadside probability from 0.4 to 0.5
-        // Roadside zone - close to road
-        sideDistance = Math.random() * 2.0 + 1.0; // Increased range: 1.0 to 3.0 units from center
-        baseSize = Math.random() * 0.6 + 0.8; // 0.8 to 1.4 size
-    } else if (zoneRandom < 0.8) { // Increased landscape probability from 0.7 to 0.8
-        // Landscape zone - medium distance
-        sideDistance = Math.random() * 3.0 + 2.0; // Increased range: 2.0 to 5.0 units from center
-        baseSize = Math.random() * 0.4 + 0.6; // 0.6 to 1.0 size
-    } else {
-        // Horizon zone - far in the distance
-        sideDistance = Math.random() * 5 + 3; // Increased range: 3 to 8 units from center
-        baseSize = Math.random() * 0.3 + 0.4; // 0.4 to 0.7 size
-    }
-    
-    const sideOffset = sideDistance * side;
-    
-    const newDecoration = {
-        emoji: randomEmoji,
-        x: sideOffset,
-        z: z,
-        size: baseSize,
-        rotation: 0,
-        bobOffset: Math.random() * Math.PI * 2,
-        zone: zoneRandom < 0.5 ? 'roadside' : (zoneRandom < 0.8 ? 'landscape' : 'horizon')
-    };
+    newDecoration.emoji = randomEmoji;
+    newDecoration.x = sideDistance * side;
+    newDecoration.z = z;
+    newDecoration.size = Math.random() * 0.4 + 0.6;
+    newDecoration.bobOffset = Math.random() * Math.PI * 2;
     
     backgroundDecorations.push(newDecoration);
 }
 
-function updateBackgroundDecorations() {
+function updateBackgroundDecorations(deltaMultiplier = 1) {
     if (!gameState.gameStarted) return;
     
-    // Update existing decorations - use for loop instead of filter for better performance
+    // Update existing decorations
     for (let i = backgroundDecorations.length - 1; i >= 0; i--) {
         const decoration = backgroundDecorations[i];
-        decoration.z -= GAME_SPEED * 2.5; // Move toward player
-        decoration.bobOffset += 0.015; // Gentle bobbing
+        decoration.z -= GAME_SPEED * 2.5 * deltaMultiplier;
         
-        // Remove decorations that are behind player OR too far to the sides to be visible
-        if (decoration.z <= -0.5) {
-            backgroundDecorations.splice(i, 1);
-            continue;
+        // Only update bob for visible decorations
+        if (decoration.z > 0 && decoration.z < 6) {
+            decoration.bobOffset += 0.015 * deltaMultiplier;
         }
         
-        // Check visibility only for decorations that might be off-screen
-        if (decoration.z > 0.3) {
-            const { x: screenX } = worldToScreen(decoration.x, decoration.z);
-            const isVisible = screenX > -200 && screenX < canvas.width + 200;
-            if (!isVisible) {
-                backgroundDecorations.splice(i, 1);
-            }
+        // Remove decorations that are behind player
+        if (decoration.z <= -0.5) {
+            returnDecorationToPool(decoration);
+            backgroundDecorations.splice(i, 1);
         }
     }
     
-    // Spawn new decorations more frequently for better distribution
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const spawnRate = isMobile ? 0.015 : 0.025; // Reduce spawn rate on mobile
+    // Spawn new decorations less frequently on mobile
+    const spawnRate = isMobile ? 0.008 : 0.015;
     
     if (Math.random() < spawnRate) {
-        spawnDecoration(Math.random() * 2 + 4); // Spawn between 4-6 units away
+        spawnDecoration(Math.random() * 2 + 4);
     }
 }
 
 function drawBackgroundDecorations() {
     if (backgroundDecorations.length === 0) return;
     
-    // Sort by distance (far to near) for proper layering
-    const sortedDecorations = [...backgroundDecorations].sort((a, b) => b.z - a.z);
+    // Pre-calculate visible bounds
+    const leftBound = -100;
+    const rightBound = canvas.width + 100;
     
-    sortedDecorations.forEach(decoration => {
-        if (decoration.z >= 0 && decoration.z <= 6) {
-            const { x, y, scale } = worldToScreen(decoration.x, decoration.z);
+    // Set common properties once
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    
+    // Draw visible decorations
+    for (let decoration of backgroundDecorations) {
+        if (decoration.z <= 0 || decoration.z > 6) continue;
+        
+        const { x, y, scale } = worldToScreen(decoration.x, decoration.z);
+        
+        // Skip off-screen decorations
+        if (x < leftBound || x > rightBound) continue;
+        
+        const emojiSize = Math.floor(120 * scale * decoration.size);
+        
+        if (emojiSize > 15) {
+            const alpha = Math.min(1, Math.max(0.6, scale * 2));
+            const bobAmount = Math.sin(decoration.bobOffset) * 2 * scale;
             
-            // Check if decoration is visible on screen
-            if (x < -100 || x > canvas.width + 100) return;
-            
-            // Bigger base size for better visibility
-            const emojiSize = Math.floor(120 * scale * decoration.size); // Increased from 80 to 120
-            
-            if (emojiSize > 12) { // Increased minimum size from 8 to 12
-                // Better visibility for distant objects
-                const alpha = Math.min(1, Math.max(0.5, scale * 2.5)); // Increased min alpha from 0.3 to 0.5
-                
-                // Very subtle bobbing motion
-                const bobAmount = Math.sin(decoration.bobOffset) * 2 * scale;
-                const finalY = y + bobAmount;
-                
-                ctx.save();
-                ctx.globalAlpha = alpha; // Fade distant objects
-                
-                ctx.font = `${emojiSize}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'bottom';
-                ctx.fillText(decoration.emoji, Math.floor(x), Math.floor(finalY));
-                
-                ctx.restore();
-            }
+            ctx.globalAlpha = alpha;
+            ctx.font = `${emojiSize}px Arial`;
+            ctx.fillText(decoration.emoji, Math.floor(x), Math.floor(y + bobAmount));
         }
-    });
+    }
+    
+    ctx.restore();
 }
 
 // Canvas and 3D Rendering
@@ -277,10 +270,13 @@ function drawGround() {
     ctx.fillRect(0, horizon, canvas.width, canvas.height - horizon);
 }
 
+// OPTIMIZED ROAD DRAWING
 function drawRoad() {
     const vanishing = getVanishingPoint();
     const roadWidth = getRoadWidth();
     const theme = gameState.selectedBusiness;
+    
+    ctx.save();
     
     // Road surface
     ctx.fillStyle = theme.roadColor;
@@ -292,37 +288,35 @@ function drawRoad() {
     ctx.closePath();
     ctx.fill();
     
-    // Road edges
+    // Road edges - single path
     ctx.strokeStyle = '#FFFFFF';
     ctx.lineWidth = 4;
-    
     ctx.beginPath();
     ctx.moveTo(vanishing.x - 30, vanishing.y);
     ctx.lineTo(canvas.width / 2 - roadWidth / 2, canvas.height);
-    ctx.stroke();
-    
-    ctx.beginPath();
     ctx.moveTo(vanishing.x + 30, vanishing.y);
     ctx.lineTo(canvas.width / 2 + roadWidth / 2, canvas.height);
     ctx.stroke();
     
-    // Center line dashes moving toward player
+    // Center line dashes - draw fewer on mobile
     ctx.strokeStyle = '#FFD700';
     ctx.lineWidth = 4;
+    ctx.beginPath();
     
-    for (let i = 0; i < 10; i++) {
-        let dashZ = 1.5 - ((gameState.roadOffset * 4 + i * 0.3) % 2.0);
+    const dashCount = isMobile ? 5 : 8;
+    for (let i = 0; i < dashCount; i++) {
+        let dashZ = 1.5 - ((gameState.roadOffset * 4 + i * 0.4) % 2.0);
         
         if (dashZ >= 0 && dashZ <= 1.5) {
             const start = worldToScreen(0, dashZ);
             const end = worldToScreen(0, Math.max(0, dashZ - 0.15));
-            
-            ctx.beginPath();
             ctx.moveTo(start.x, start.y);
             ctx.lineTo(end.x, end.y);
-            ctx.stroke();
         }
     }
+    ctx.stroke();
+    
+    ctx.restore();
 }
 
 function drawPlayer() {

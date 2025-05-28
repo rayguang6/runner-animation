@@ -59,16 +59,17 @@ function spawnCard(type) {
     const cardType = type || getRandomCardType();
     currentCard = {
         z: spawnDistance,
-        type: cardType
+        type: cardType,
+        x: 0
     };
     console.log(`New card spawned at distance ${spawnDistance} with type ${cardType}`);
 }
 
-function updateGameCards() {
+function updateGameCards(deltaMultiplier = 1) {
     if (!gameState.gameStarted || !currentCard) return;
     
-    // Move card toward player
-    currentCard.z -= GAME_SPEED * 2.5;
+    // Move card toward player with delta time adjustment
+    currentCard.z -= GAME_SPEED * 2.5 * deltaMultiplier;
     
     // Check collision
     if (currentCard.z <= 0.2) {
@@ -82,7 +83,7 @@ function updateGameCards() {
 
 function drawGameCards() {
     if (!currentCard || currentCard.z <= 0) return;
-    const { x, y, scale } = worldToScreen(0, currentCard.z);
+    const { x, y, scale } = worldToScreen(currentCard.x, currentCard.z);
     const cardSize = Math.floor(300 * scale);
     if (cardSize > 10) {
         // Try to use the type-specific image
@@ -126,7 +127,8 @@ function spawnCardAt(distance = 3.5, type) {
     const cardType = type || getRandomCardType();
     currentCard = {
         z: distance,
-        type: cardType
+        type: cardType,
+        x: 0
     };
     isFirstCard = false;
     console.log(`Card spawned at distance ${distance} with type ${cardType}`);
@@ -135,4 +137,4 @@ function spawnCardAt(distance = 3.5, type) {
 // Check if there's currently a card
 function hasCard() {
     return currentCard !== null;
-} 
+}
