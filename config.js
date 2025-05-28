@@ -12,7 +12,7 @@ const BUSINESS_TYPES = {
             src: 'images/hero.png',
             frameWidth: 32,
             frameHeight: 32,
-            frameSpeed: 10,
+            frameSpeed: 5,
             scale: 10,
             frames: [[1,2], [0,2], [3,2], [0,2]]
         },
@@ -33,7 +33,7 @@ const BUSINESS_TYPES = {
             src: 'images/npc1.png',
             frameWidth: 32,
             frameHeight: 32,
-            frameSpeed: 10,
+            frameSpeed: 5,
             scale: 10,
             frames: [[1,2], [0,2], [3,2], [0,2]]
         },
@@ -54,7 +54,7 @@ const BUSINESS_TYPES = {
             src: 'images/npc2.png',
             frameWidth: 32,
             frameHeight: 32,
-            frameSpeed: 10,
+            frameSpeed: 5,
             scale: 10,
             frames: [[1,2], [0,2], [3,2], [0,2]]
         },
@@ -75,7 +75,7 @@ const BUSINESS_TYPES = {
             src: 'images/npc4.png',
             frameWidth: 32,
             frameHeight: 32,
-            frameSpeed: 10,
+            frameSpeed: 5,
             scale: 10,
             frames: [[1,2], [0,2], [3,2], [0,2]]
         },
